@@ -1,7 +1,7 @@
 'use strict'
-
 console.log("Ganbaru zoi")
 const aws = require('aws-sdk');
+if (process.env.NODE_ENV !== 'production') require('./cred')(aws);
 const s3 = new aws.S3({apiVersion: '2006-03-01'});
 const http = require('https');
 const fs = require('fs');
@@ -28,20 +28,18 @@ exports.handler = (event, context) => {
       if (isNaN(coverage)) {
         throw `property 'coverage' is not a number`;
       }
-      const rounded = Math.round(coverage);
-      if (rounded < 0 || 100 < rounded) {
-        throw `property 'coverage' out of range:${rounded}`;
-      }
-      console.log(`coverage:${rounded}!!`); //FIXME
+
+      console.log(`coverage:${coverage}!!`);
 
       const bucket = 'zoi-public';
 
       // generate badge
-      // const convert4shieldsIo = str => str.replace(/-/g, '--').replace(/_/g, '__');
-      // const subject = convert4shieldsIo(cro['subject']) || 'subject';
-      const url = `https://img.shields.io/badge/front--coverage-${coverage}%25-green.svg`
+      const convert4shieldsIo = str => str.replace(/-/g, '--').replace(/_/g, '__');
+      const subject = convert4shieldsIo(cro['subject'] || 'subject') ;
+      const color = convert4shieldsIo(cro['color'] || 'lightgrey') ;
+      const url = `https://img.shields.io/badge/${subject}-${coverage}%25-${color}.svg`
 
-      put(url);
+      put(url, subject);
     } catch (e) {
       context.done('error', `${e}`);
     }
