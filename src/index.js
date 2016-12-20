@@ -3,6 +3,8 @@
 console.log("Ganbaru zoi")
 const aws = require('aws-sdk');
 const s3 = new aws.S3({apiVersion: '2006-03-01'});
+const http = require('https');
+const fs = require('fs');
 
 // s3://zoi-coverage/
 //    -- report/master.json
@@ -37,30 +39,55 @@ exports.handler = (event, context) => {
             }
             console.log(`coverage:${rounded}!!`); //FIXME
 
-            // copy image
-            const bucket = 'zoi-public';
-            const branch = 'master';
-            const imgType = 'svg';
-            const copySource = `${bucket}/image/front--coverage-${rounded}.${imgType}`;
-            const params = {
-              CopySource: copySource,
-              Bucket: bucket,
-              Key: `branch/${branch}.${imgType}`
-            };
-            s3.copyObject(params, (err, data) => {
-              if (err) { // an error occurred
-                console.error(err, err.stack);
-              } else { // successful response
-                console.log(data);
-              };
-            });
+        const bucket = 'zoi-public';
 
-          } else {
-            throw `property 'coverage' not found`;
-          }
-        } catch (e) {
-          context.done('error', `Invalid CRO format, ${e}: ${data.Body}`);
-        }
+        // generate badge
+        // const convert4shieldsIo = str => str.replace(/-/g, '--').replace(/_/g, '__');
+        // const subject = convert4shieldsIo(cro['subject']) || 'subject';
+        const url = `https://img.shields.io/badge/front--coverage-100%25-green.svg`
+        const id = 'master';
+        const imgType = 'svg';
+        const tmpFileName = `/tmp/badge_${new Date().getTime()}`;
+        const tmpFile = fs.createWriteStream(tmpFileName);
+        const req = http.get(url, res => {
+          res.pipe(tmpFile);
+          res.on('end', () => {
+            tmpFile.close();
+
+            fs.readFile(tmpFileName, (err, data) => {
+              if (err) context.done('error', err);
+
+              const params = {
+                Key: `${bucket}/branch/${id}.${imgType}`,
+                Body: data
+              };
+              const upload = (err, data) => {
+                if (err) context.done('error', `error put badge${err}`)
+              };
+              s3.upload(params, upload);
+            });
+          });
+        });
+
+
+        // // copy image
+
+        // const copySource = `${bucket}/image/front--coverage-${rounded}.${imgType}`;
+        // const params = {
+        //   CopySource: copySource,
+        //   Bucket: bucket,
+        //   Key: `branch/${id}.${imgType}`
+        // };
+        // s3.copyObject(params, (err, data) => {
+        //   if (err) { // an error occurred
+        //     console.error(err, err.stack);
+        //   } else { // successful response
+        //     console.log(data);
+        //   };
+        // });
+
+      } else {
+        throw `property 'coverage' not found`;
       }
     }
   );
