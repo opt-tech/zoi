@@ -18,7 +18,7 @@ exports.handler = (event, context) => {
   const bucket = event.Records[0].s3.bucket.name;
   const key = event.Records[0].s3.object.key;
   const getObject = (err, data) => {
-    if (err) context.done('error', `error getting file${err}`);
+    if (err) return context.done('error', `error getting file${err}`);
     console.log(`data:${JSON.stringify(data, null, ' ')}`);
     try {
       // Coverage Report Object
