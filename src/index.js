@@ -34,12 +34,14 @@ exports.handler = (event, context) => {
       const bucket = 'zoi-public';
 
       // generate badge
-      const convert4shieldsIo = str => str.replace(/-/g, '--').replace(/_/g, '__');
-      const subject = convert4shieldsIo(cro['subject'] || 'subject') ;
-      const color = convert4shieldsIo(cro['color'] || 'lightgrey') ;
-      const url = `https://img.shields.io/badge/${subject}-${coverage}%25-${color}.svg`
+      const badgeParam = {
+        subject: cro['subject'] || 'subject',
+        status: `${coverage}%`,
+        color: cro['color'] || 'lightgrey',
+        imageType: 'svg'
+      };
 
-      put(url, subject);
+      put(badgeParam, badgeParam.subject);
     } catch (e) {
       context.done('error', `${e}`);
     }
