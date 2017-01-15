@@ -1,18 +1,27 @@
 {
-  "name": "zoi-cli",
-  "version": "1.0.0",
+  "name": "@sisisin/zoi-cli",
+  "version": "0.0.1",
   "description": "",
   "engines": {
-    "node" : ">=7.0"
+    "node": ">=7.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/opt-tech/zoi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/opt-tech/zoi/issues"
+  },
+  "homepage": "https://github.com/opt-tech/zoi",
   "keywords": [],
   "author": "sisisin",
   "license": "MIT",
   "dependencies": {
-    "aws-sdk": "^2.7.16"
+    "aws-sdk": "^2.7.16",
+    "command-line-args": "^3.0.5"
   },
   "bin": {
     "zoi": "./bin/zoi"

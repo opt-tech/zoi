@@ -2,11 +2,20 @@ const http = require('https');
 const fs = require('fs');
 
 const sio = require('./shields-io');
+const readBadgeJson = require('./read-badge-json');
 
 module.exports = async function main() {
   console.log('Ganbaru zoi!');
+  const args = getArgs();
 
-  const badgeParam = getParams();
+  let badgeParam;
+  try {
+    badgeParam = await readBadgeJson(args.jsonFile);
+  } catch (e) {
+    console.log('invalid json file\n', e);
+    return process.exit(1);
+  }
+
   let badgeData;
   try {
     badgeData = await getBadgeData(badgeParam);
@@ -23,17 +32,18 @@ module.exports = async function main() {
   }
 }
 
-function getParams() {
-  // todo: get params from cli args
-
-  let cro = {};
-  const coverage = 15;
-  return {
-    subject: cro['subject'] || 'subject-cli',
-    status: `${coverage}%`,
-    color: cro['color'] || 'lightgrey',
-    imageType: 'svg'
-  };
+function getArgs() {
+  const commandLineArgs = require('command-line-args');
+  const optionDefinitions = [
+    { name: 'jsonFile', type: String },
+    { name: 'config', type: String },
+  ];
+  try {
+    return commandLineArgs(optionDefinitions);
+  } catch (e) {
+    console.log(e);
+    process.exit(1);
+  }
 }
 
 function getBadgeData(params) {
@@ -66,11 +76,7 @@ function putToS3(badgeData, badgeParam) {
   const imageType = badgeParam.imageType;
   const contentType = contentTypeOf(imageType);
 
-  // todo: bucket and path should refer to outside setting file
-  const putParam = {
-    bucket: 'zoi-public',
-    path: 'branch/'
-  };
+  const putParam = getConfig(getArgs().config);
 
   const params = {
     Key: `${putParam.path}${badgeParam.subject}.${imageType}`,
@@ -86,4 +92,9 @@ function putToS3(badgeData, badgeParam) {
       return resolve(data);
     });
   });
+}
+
+function getConfig(configPath = './zoi.config.js') {
+  const path = require('path');
+  return require(path.resolve(process.cwd(), configPath))();
 }
