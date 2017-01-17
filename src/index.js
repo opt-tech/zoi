@@ -25,7 +25,7 @@ module.exports = async function main() {
   }
 
   try {
-    await putToS3(badgeData, badgeParam);
+    await putToS3(buildPutParams(badgeData, badgeParam, getConfig(args.config)));
   } catch (e) {
     console.log('failed `putToS3()`\n', e);
     return process.exit(1);
@@ -70,21 +70,23 @@ const contentTypeOf = imageType => {
   }
 };
 
-function putToS3(badgeData, badgeParam) {
-  const aws = require('aws-sdk');
-  const s3 = new aws.S3({ apiVersion: '2006-03-01' });
+function buildPutParams(badgeData, badgeParam, s3Config) {
   const imageType = badgeParam.imageType;
   const contentType = contentTypeOf(imageType);
 
-  const putParam = getConfig(getArgs().config);
-
   const params = {
-    Key: `${putParam.path}${badgeParam.subject}.${imageType}`,
+    Key: `${s3Config.path}${badgeParam.subject}.${imageType}`,
     ContentType: contentType,
     CacheControl: 'no-cache',
     Body: badgeData,
-    Bucket: putParam.bucket
+    Bucket: s3Config.bucket
   };
+  return params;
+}
+
+function putToS3(params) {
+  const aws = require('aws-sdk');
+  const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 
   return new Promise((resolve, reject) => {
     s3.putObject(params, (err, data) => {

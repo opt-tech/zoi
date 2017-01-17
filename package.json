@@ -6,7 +6,8 @@
     "node": ">=7.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "zoi": "zoi --config ./example/zoi.config.js --jsonFile ./example/zoi-cov.json"
   },
   "repository": {
     "type": "git",
