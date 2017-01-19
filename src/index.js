@@ -1,50 +1,102 @@
-'use strict'
-console.log("Ganbaru zoi")
-const aws = require('aws-sdk');
-if (process.env.NODE_ENV !== 'production') require('./cred')(aws);
-const s3 = new aws.S3({apiVersion: '2006-03-01'});
 const http = require('https');
 const fs = require('fs');
-const put = require('./get-svg');
 
-// s3://zoi-coverage/
-//    -- report/master.json
-// s3://zoi-public/
-//    -- branch/master.png
-//    -- images/*.png
+const sio = require('./shields-io');
+const readBadgeJson = require('./read-badge-json');
 
-exports.handler = (event, context) => {
-  console.log('Received event:', JSON.stringify(event, null, 2));
-  const bucket = event.Records[0].s3.bucket.name;
-  const key = event.Records[0].s3.object.key;
-  const getObject = (err, data) => {
-    if (err) return context.done('error', `error getting file${err}`);
-    console.log(`data:${JSON.stringify(data, null, ' ')}`);
-    try {
-      // Coverage Report Object
-      const cro = JSON.parse(data.Body);
-      if (!cro.coverage) context.done('error', `property 'coverage' not found`);
-      const coverage = Number(cro.coverage);
-      if (isNaN(coverage)) {
-        throw `property 'coverage' is not a number`;
-      }
+module.exports = async function main() {
+  console.log('Ganbaru zoi!');
+  const args = getArgs();
 
-      console.log(`coverage:${coverage}!!`);
+  let badgeParam;
+  try {
+    badgeParam = await readBadgeJson(args.jsonFile);
+  } catch (e) {
+    console.log('invalid json file\n', e);
+    return process.exit(1);
+  }
 
-      const bucket = 'zoi-public';
+  let badgeData;
+  try {
+    badgeData = await getBadgeData(badgeParam);
+  } catch (e) {
+    console.log('failed `getBadgeData()`\n', e);
+    return process.exit(1);
+  }
 
-      // generate badge
-      const badgeParam = {
-        subject: cro['subject'] || 'subject',
-        status: `${coverage}%`,
-        color: cro['color'] || 'lightgrey',
-        imageType: 'svg'
-      };
+  try {
+    await putToS3(buildPutParams(badgeData, badgeParam, getConfig(args.config)));
+  } catch (e) {
+    console.log('failed `putToS3()`\n', e);
+    return process.exit(1);
+  }
+}
 
-      put(badgeParam, badgeParam.subject);
-    } catch (e) {
-      context.done('error', `${e}`);
-    }
-  };
-  s3.getObject({ Bucket: bucket, Key: key }, getObject);
+function getArgs() {
+  const commandLineArgs = require('command-line-args');
+  const optionDefinitions = [
+    { name: 'jsonFile', type: String },
+    { name: 'config', type: String },
+  ];
+  try {
+    return commandLineArgs(optionDefinitions);
+  } catch (e) {
+    console.log(e);
+    process.exit(1);
+  }
+}
+
+function getBadgeData(params) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    const url = sio.url(params);
+
+    http.get(url, res => {
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => { resolve(data); });
+      res.on('error', err => { reject(err); });
+    });
+  });
+}
+
+const contentTypeOf = imageType => {
+  switch (imageType) {
+    case 'svg':
+      return 'image/svg+xml';
+    case 'png':
+      return 'image/png';
+    default:
+      throw new Error('invalid image type.');
+  }
 };
+
+function buildPutParams(badgeData, badgeParam, s3Config) {
+  const imageType = badgeParam.imageType;
+  const contentType = contentTypeOf(imageType);
+
+  const params = {
+    Key: `${s3Config.path}${badgeParam.subject}.${imageType}`,
+    ContentType: contentType,
+    CacheControl: 'no-cache',
+    Body: badgeData,
+    Bucket: s3Config.bucket
+  };
+  return params;
+}
+
+function putToS3(params) {
+  const aws = require('aws-sdk');
+  const s3 = new aws.S3({ apiVersion: '2006-03-01' });
+
+  return new Promise((resolve, reject) => {
+    s3.putObject(params, (err, data) => {
+      if (err) return reject(err);
+      return resolve(data);
+    });
+  });
+}
+
+function getConfig(configPath = './zoi.config.js') {
+  const path = require('path');
+  return require(path.resolve(process.cwd(), configPath))();
+}

@@ -1,0 +1,4 @@
+#!/usr/bin/env node --harmony
+
+// todo: need to transpile
+require('../src/index')();
